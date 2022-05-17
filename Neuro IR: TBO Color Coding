@@ -1,0 +1,20 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import os, glob
+import pydicom
+import pylab as pl
+import sys
+import matplotlib.path as mplPath
+
+icaap = "C:/Users/shuaw/Documents/Neuro-IR-research/New folder/TBO2_symptoms/  (3)/EEDE04E2.dcm"
+ds = pydicom.dcmread(icaap)
+pix = ds.pixel_array
+
+Intensity = pix[:,515,515]
+Time = np.arange(28)
+
+plt.plot(Time, Intensity)
+plt.xlabel("Time")
+plt.ylabel("Intensity")
+plt.title('Pixel Intensity Over Time')
+plt.show()
