@@ -1,0 +1,53 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import os, glob
+import pydicom
+import pylab as pl
+import sys
+import matplotlib.path as mplPath
+from matplotlib import cm
+
+icaap = icaap = "C:/Users/shuaw/Documents/Neuro-IR-research/New folder/TBO2_symptoms/  (3)/EEDE04E2.dcm"
+ds = pydicom.dcmread(icaap)
+pix = ds.pixel_array
+
+#plot each pixel across frames, but add in a re dotted line for the threshold
+#had to flip the array because it was upside down, and then do it backwards because the files
+#were flipped.
+def plot_pixel_across_frames_w_threshold(pix, x, y, threshold):
+    data = -1 * pix[::-1, x, y]
+    fig, ax = plt.subplots()
+    ax.plot(data)
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Comparative Intensity')
+    ax.set_title('Pixel Intensity Over Time')
+    ax.axhline(y=threshold, color='r', linestyle='--')
+    return data
+
+#function that lets me know when we hit a significant level of contrast, with threshold set by visual inspection
+def get_min_pixel_intensities(pix, threshold):
+    num_frames = pix.shape[0]
+    height, width = pix.shape[1], pix.shape[2]
+    min_intensities = np.zeros((height, width))
+    for i in range(height):
+        for j in range(width):
+            for k in range(num_frames):
+                if -1 * pix[::-1, i, j][k] < threshold:
+                    min_intensities[i, j] = num_frames - k
+                    break
+    return min_intensities
+
+#makes a color map gives a shade of blue proportional to how long it takes for contrast to reach the area
+#with a lighter shade of blue representing a longer period of time
+def create_threshold_image(pix, threshold):
+    min_intensities = get_min_pixel_intensities(pix, threshold)
+    min_intensities = np.nan_to_num(min_intensities)
+    min_intensities[min_intensities == 0] = 1
+    color_map = cm.get_cmap('Blues', np.max(min_intensities) + 1)
+    color_image = color_map(min_intensities / np.max(min_intensities))
+    return color_image
+
+#plots the colormap above
+color_image = create_threshold_image(pix, threshold=-2825)
+plt.imshow(color_image)
+plt.show()
