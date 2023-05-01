@@ -6,6 +6,7 @@ import pylab as pl
 import sys
 import matplotlib.path as mplPath
 from matplotlib import cm
+from matplotlib.path import Path
 
 icaap = icaap = "C:/Users/shuaw/Documents/Neuro-IR-research/New folder/TBO2_symptoms/  (3)/EEDE04E2.dcm"
 ds = pydicom.dcmread(icaap)
@@ -60,57 +61,16 @@ def create_threshold_image(pix, threshold):
     max_intensities = np.max(min_intensities)
     cmap = cm.get_cmap('RdYlBu_r', max_intensities + 1)
     rgba_image = cmap((max_intensities - min_intensities) / max_intensities)
-    return rgba_image
-	
-# MAKE A Polygon (this gives me an error)
-# define vertices and create path
-vertices = [(754, 213), (680, 192), (630, 382), (685, 482), (724, 505), (857, 469), (854, 365), (818, 284)]
-codes = [Path.MOVETO] + [Path.LINETO]*6 + [Path.CLOSEPOLY]
-path = Path(vertices, codes)
 
-# plot image with polygon; threshold lowered to accomodate visuals
-color_image = create_threshold_image(pix, threshold=-3000)
-fig, ax = plt.subplots()
-ax.imshow(color_image)
-
-patch = plt.Polygon(vertices, closed=True, fill=True, facecolor='red', alpha=0.5)
-ax.add_patch(patch)
-
-plt.show()
-
-# create a mask for the polygon
-x, y = np.meshgrid(np.arange(pix.shape[1]), np.arange(pix.shape[0]))
-x, y = x.flatten(), y.flatten()
-points = np.vstack((x,y)).T
-mask = path.contains_points(points)
-mask = mask.reshape(pix.shape)
-
-# create masked array and calculate average
-masked_pix = np.ma.masked_array(pix, mask=~mask)
-average_value = np.ma.average(masked_pix)
-print("Average pixel value within polygon:", average_value)
-
-#CODE TO MAKE 2 polygons and attempts to average them
-# define first mask vertices and create path
+# define vertices and create paths for two masks
 vertices1 = [(754, 213), (680, 192), (630, 382), (685, 482), (724, 505), (857, 469), (854, 365), (818, 284)]
 codes1 = [Path.MOVETO] + [Path.LINETO]*6 + [Path.CLOSEPOLY]
 path1 = Path(vertices1, codes1)
 
-# define second mask vertices and create path
 vertices2 = [(154, 213), (230, 192), (280, 382), (225, 482), (186, 505), (53, 469), (56, 365), (92, 284)]
 vertices2 = [(x+144, y) for x, y in vertices2] # move mask over 144 pixels
 codes2 = [Path.MOVETO] + [Path.LINETO]*6 + [Path.CLOSEPOLY]
 path2 = Path(vertices2, codes2)
-
-# create threshold image
-def create_threshold_image(pix, threshold):
-    min_intensities = get_min_pixel_intensities(pix, threshold)
-    min_intensities = np.nan_to_num(min_intensities)
-    min_intensities[min_intensities == 0] = 1
-    max_intensities = np.max(min_intensities)
-    cmap = cm.get_cmap('RdYlBu_r', max_intensities + 1)
-    rgba_image = cmap((max_intensities - min_intensities) / max_intensities)
-    return rgba_image
 
 # plot image with masks
 color_image = create_threshold_image(pix, threshold=-3000)
@@ -123,14 +83,27 @@ ax.add_patch(patch1)
 patch2 = plt.Polygon(vertices2, closed=True, fill=True, facecolor='blue', alpha=0.5)
 ax.add_patch(patch2)
 
-# calculate average pixel intensity in both masks
-mask1_pixels = np.array(path1.contains_points(np.transpose(np.nonzero(color_image[:,:,0]))))
-mask2_pixels = np.array(path2.contains_points(np.transpose(np.nonzero(color_image[:,:,0]))))
-mask1_intensity = np.mean(pix[mask1_pixels])
-mask2_intensity = np.mean(pix[mask2_pixels])
+# create masks for the two polygons
+x, y = np.meshgrid(np.arange(pix.shape[1]), np.arange(pix.shape[0]))
+x, y = x.flatten(), y.flatten()
+points = np.vstack((x,y)).T
+mask1 = path1.contains_points(points)
+mask1 = mask1.reshape(pix.shape)
+
+mask2 = path2.contains_points(points)
+mask2 = mask2.reshape(pix.shape)
+
+# create masked arrays and calculate averages
+masked_pix1 = np.ma.masked_array(pix, mask=~mask1)
+masked_pix2 = np.ma.masked_array(pix, mask=~mask2)
+
+average_value1 = np.ma.average(masked_pix1)
+average_value2 = np.ma.average(masked_pix2)
+
+print("Average pixel value within polygon 1:", average_value1)
+print("Average pixel value within polygon 2:", average_value2)
 
 # divide values to get a single quantitative value
-quantitative_value = mask1_intensity / mask2_intensity
+quantitative_value = average_value1 / average_value2
 
 print("Quantitative value: ", quantitative_value)
-
